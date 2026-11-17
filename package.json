@@ -1,0 +1,26 @@
+{
+  "name": "qbittorrent-adder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Firefox extension that adds qBittorrent buttons next to magnet and .torrent links.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "node build.mjs",
+    "lint:addon": "web-ext lint --source-dir dist/firefox",
+    "package": "npm run build && web-ext build --source-dir dist/firefox --artifacts-dir artifacts --overwrite-dest",
+    "start": "npm run build && web-ext run --source-dir dist/firefox"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AndyIsHereBoi/qbittorrent-adder.git"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.12",
+    "web-ext": "^10.8.0"
+  }
+}

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>qBittorrent Adder settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="wrap header-inner">
+        <img src="icons/icon-96.png" width="44" height="44" alt="" />
+        <div>
+          <h1>qBittorrent Adder</h1>
+          <p class="muted">Add a button beside magnet and .torrent links. Nothing is submitted until you click.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <form id="settings-form" novalidate>
+        <section class="card" aria-labelledby="connection-heading">
+          <h2 id="connection-heading">qBittorrent connection</h2>
+          <p class="muted">
+            The extension talks to qBittorrent's Web API from its privileged background context. Credentials are stored
+            only in this Firefox profile and are never sent to webpages.
+          </p>
+
+          <div class="grid two">
+            <label class="field">
+              <span>Base URL</span>
+              <input id="base-url" type="url" inputmode="url" placeholder="http://192.168.1.10:8080" autocomplete="off" spellcheck="false" />
+              <small class="muted">Include the scheme and any reverse-proxy path, for example https://example.net/qbt</small>
+            </label>
+
+            <label class="field">
+              <span>Username</span>
+              <input id="username" type="text" autocomplete="username" spellcheck="false" />
+            </label>
+
+            <label class="field">
+              <span>Password</span>
+              <input id="password" type="password" autocomplete="current-password" />
+            </label>
+
+          </div>
+
+          <div class="actions">
+            <button id="test-connection" type="button" class="secondary">Test connection</button>
+            <span id="test-status" class="status-text" role="status" aria-live="polite"></span>
+          </div>
+
+          <details class="help">
+            <summary>qBittorrent setup and network notes</summary>
+            <ul>
+              <li>Enable <strong>Tools → Options → Web UI → Web User Interface (Remote control)</strong> in qBittorrent.</li>
+              <li>Use the same host and port in the base URL. If you use a reverse proxy, use its public URL and path.</li>
+              <li>
+                The extension logs in through <code>/api/v2/auth/login</code> when needed and re-validates the session
+                before every submission. It also retries once after an expired session.
+              </li>
+              <li>
+                qBittorrent CSRF protection is supported: the extension rewrites the Origin/Referer headers only for its
+                own background API requests to the configured host. Normal browsing requests are never changed.
+              </li>
+              <li>
+                This build uses Firefox's Manifest V2 install-time host access, which works with qBittorrent on
+                private LAN addresses in Firefox 160. If you use the MV3 comparison build instead, Firefox may block
+                the request; see the README for the <code>network.lna.skip-domains</code> workaround.
+              </li>
+              <li>
+                For a <code>.torrent</code> URL, qBittorrent downloads the file itself. The URL must be reachable from
+                qBittorrent's network, not merely from this browser. Browser-only cookies, localhost URLs, or links
+                requiring a VPN on this machine may fail.
+              </li>
+              <li>
+                If qBittorrent has a self-signed HTTPS certificate, Firefox must trust it before the extension can
+                connect.
+              </li>
+            </ul>
+          </details>
+        </section>
+
+        <section class="card" aria-labelledby="scan-heading">
+          <h2 id="scan-heading">Link detection</h2>
+
+          <label class="switch-row">
+            <span><strong>Enable buttons on webpages</strong><small class="muted">Master switch, also available in the toolbar popup.</small></span>
+            <input id="enabled" type="checkbox" role="switch" />
+          </label>
+
+          <div class="grid two checks">
+            <label class="check-row">
+              <input id="magnet-anchors" type="checkbox" />
+              <span>Magnet links in anchor <code>href</code> attributes</span>
+            </label>
+            <label class="check-row">
+              <input id="torrent-links" type="checkbox" />
+              <span>HTTP(S) links ending in <code>.torrent</code></span>
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label class="field">
+              <span>Additional HTML attributes</span>
+              <textarea id="extra-attributes" rows="3" spellcheck="false" placeholder="data-magnet&#10;title"></textarea>
+              <small class="muted">One attribute name per line. Magnet URIs found in these values get a button.</small>
+            </label>
+            <label class="field">
+              <span>Element selectors to scan for magnet text</span>
+              <textarea id="text-selectors" rows="3" spellcheck="false" placeholder="code&#10;.magnet-text"></textarea>
+              <small class="muted">One CSS selector per line. Text content is searched for complete magnet URIs.</small>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Debug logging</span>
+            <span class="check-row">
+              <input id="debug" type="checkbox" />
+              <span>Enable opt-in debug logs (off by default)</span>
+            </span>
+            <small class="muted">
+              Debug logs contain only operation names and HTTP status codes. Passwords, cookies, authorization headers,
+              and full URLs/query strings are never logged.
+            </small>
+          </label>
+        </section>
+
+        <section class="card" aria-labelledby="display-heading">
+          <h2 id="display-heading">Button display</h2>
+          <div class="grid two">
+            <label class="field">
+              <span>Default placement</span>
+              <select id="placement">
+                <option value="after">After the link</option>
+                <option value="before">Before the link</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Default layout</span>
+              <select id="layout">
+                <option value="inline">Inline</option>
+                <option value="block">Own line</option>
+              </select>
+            </label>
+          </div>
+
+          <h3>Per-site rules</h3>
+          <p class="muted">Match by hostname. Use <code>example.com</code> or <code>*.example.com</code>. Rules only choose safe built-in options.</p>
+
+          <div class="site-rule-form">
+            <label class="field">
+              <span>Hostname</span>
+              <input id="rule-hostname" type="text" placeholder="example.com" spellcheck="false" />
+            </label>
+            <label class="field">
+              <span>Buttons</span>
+              <select id="rule-enabled">
+                <option value="true">Show</option>
+                <option value="false">Hide</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Placement</span>
+              <select id="rule-placement">
+                <option value="default">Use default</option>
+                <option value="after">After</option>
+                <option value="before">Before</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Layout</span>
+              <select id="rule-layout">
+                <option value="default">Use default</option>
+                <option value="inline">Inline</option>
+                <option value="block">Own line</option>
+              </select>
+            </label>
+            <button id="add-rule" type="button" class="secondary">Add rule</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Hostname</th><th>Buttons</th><th>Placement</th><th>Layout</th><th><span class="sr-only">Remove</span></th></tr>
+              </thead>
+              <tbody id="site-rules-body">
+                <tr class="empty-row"><td colspan="5">No per-site rules.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="history-heading">
+          <h2 id="history-heading">Submission history</h2>
+          <p class="muted">
+            History is optional and stored only in this Firefox profile. It stores a fingerprint plus a sanitised name
+            and URL; token-bearing query strings are not stored.
+          </p>
+
+          <div class="grid two">
+            <label class="check-row">
+              <input id="history-enabled" type="checkbox" />
+              <span>Save a local history of submitted links</span>
+            </label>
+            <label class="field">
+              <span>When a link is already in history</span>
+              <select id="duplicate-mode">
+                <option value="allow">Keep the button enabled</option>
+                <option value="disable">Show it as already added and disable it</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="refresh-history" type="button" class="secondary">Refresh</button>
+            <button id="clear-history" type="button" class="danger">Clear history</button>
+            <span id="history-status" class="status-text" role="status" aria-live="polite"></span>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Type</th><th>From</th><th>Added</th><th>Stored display URL</th></tr>
+              </thead>
+              <tbody id="history-body">
+                <tr class="empty-row"><td colspan="5">No submissions recorded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card privacy" aria-labelledby="privacy-heading">
+          <h2 id="privacy-heading">Permissions and privacy</h2>
+          <ul>
+            <li><strong>storage</strong> — saves settings, credentials, and optional history locally.</li>
+            <li><strong>webRequest / webRequestBlocking</strong> — makes only the extension's own qBittorrent API requests look same-origin so qBittorrent CSRF protection accepts them.</li>
+            <li><strong>Host access</strong> — the Manifest V2 <code>&lt;all_urls&gt;</code> permission is granted at install time for page scanning and direct background requests to your qBittorrent host. No page data is transmitted anywhere.</li>
+            <li>No telemetry, analytics, cloud sync, or third-party requests. Credentials use local storage, not Firefox Sync.</li>
+          </ul>
+        </section>
+
+        <div class="save-bar">
+          <span id="save-status" class="status-text" role="status" aria-live="polite"></span>
+          <button id="save-settings" type="submit" class="primary">Save settings</button>
+        </div>
+      </form>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>

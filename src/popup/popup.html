@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>qBittorrent Adder</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <img src="icons/icon-48.png" width="32" height="32" alt="" />
+      <div>
+        <h1>qBittorrent Adder</h1>
+        <p class="muted">Magnet &amp; .torrent links</p>
+      </div>
+    </header>
+
+    <main>
+      <label class="toggle-row">
+        <span>
+          <strong>Buttons on webpages</strong>
+          <span class="muted">Scan and show add buttons</span>
+        </span>
+        <input id="enabled-toggle" type="checkbox" role="switch" aria-label="Enable buttons on webpages" />
+      </label>
+
+      <section class="status-card" aria-live="polite">
+        <span id="status-dot" class="dot" aria-hidden="true"></span>
+        <div>
+          <strong id="status-title">Checking…</strong>
+          <p id="status-text" class="muted"></p>
+        </div>
+      </section>
+
+      <button id="open-settings" class="primary" type="button">Open settings</button>
+    </main>
+
+    <footer class="muted">
+      Credentials stay in this Firefox profile. No telemetry.
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
