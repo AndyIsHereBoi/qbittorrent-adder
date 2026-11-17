@@ -57,7 +57,9 @@ function headersFor(details) {
 }
 
 function listener(details) {
-  if (details.tabId !== -1) return {};
+  const extensionOrigin =
+    typeof details.originUrl === 'string' && details.originUrl.startsWith('moz-extension://');
+  if (details.tabId !== -1 && !extensionOrigin) return {};
   return headersFor(details);
 }
 
@@ -89,7 +91,9 @@ function makeTarget(baseUrl) {
 
   return {
     key: normalised.value,
-    pattern: `${parsed.origin}/*`,
+    // Firefox match patterns do not support explicit ports. A host-only pattern
+    // matches every port; the listener still checks the full URL prefix below.
+    pattern: `${parsed.protocol}//${parsed.hostname}/*`,
     origin: parsed.origin,
     referer: `${normalised.value}/`,
     apiPrefix: `${normalised.value}/api/v2/`,

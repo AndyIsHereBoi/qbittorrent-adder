@@ -154,6 +154,18 @@ describe('qBittorrent submit errors', () => {
     });
   });
 
+  it('maps a duplicate torrent 409 response', async () => {
+    const fetchImpl = vi.fn(async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/api/v2/app/version') return jsonResponse('v5.3.0');
+      return jsonResponse('Conflict', 409);
+    });
+    await expect(makeClient(fetchImpl).addTorrent(MAGNET)).rejects.toMatchObject({
+      code: 'already-exists',
+      status: 409,
+    });
+  });
+
   it('maps a 404 base URL', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse('Not found', 404));
     await expect(makeClient(fetchImpl).addTorrent(MAGNET)).rejects.toMatchObject({ code: 'not-found' });
@@ -208,6 +220,7 @@ describe('connection testing', () => {
       const path = new URL(url).pathname;
       if (path === '/api/v2/app/version') return jsonResponse('v5.3.0');
       if (path === '/api/v2/app/webapiVersion') return jsonResponse('2.16.2');
+      if (path === '/api/v2/app/setPreferences') return jsonResponse('');
       if (path === '/api/v2/auth/login') return jsonResponse('Ok.');
       return jsonResponse('Not found', 404);
     });
@@ -217,6 +230,21 @@ describe('connection testing', () => {
       ok: true,
       version: 'v5.3.0',
       webApiVersion: '2.16.2',
+    });
+  });
+
+  it('reports a rejected write request separately from the version check', async () => {
+    const fetchImpl = vi.fn(async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/api/v2/app/version') return jsonResponse('v5.3.0');
+      if (path === '/api/v2/app/webapiVersion') return jsonResponse('2.16.2');
+      if (path === '/api/v2/app/setPreferences') return jsonResponse('Unauthorized', 401);
+      return jsonResponse('Not found', 404);
+    });
+
+    await expect(makeClient(fetchImpl).testConnection()).rejects.toMatchObject({
+      code: 'write-test-failed',
+      status: 401,
     });
   });
 

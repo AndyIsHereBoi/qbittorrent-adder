@@ -187,6 +187,7 @@ The suite covers:
 | **403 Forbidden** | Session/login problem, IP ban, or Web UI access restrictions. Verify qBittorrent's Web UI logs. |
 | **404** | The base URL is wrong or the reverse-proxy path is missing. |
 | **Fails.** from qBittorrent | The URL may be malformed, already queued, or unreachable from qBittorrent. |
+| **409 Conflict** | qBittorrent already has that torrent; it was not added again. |
 | No buttons appear | Check the master toggle, per-site rule, and detection settings. Reload the page after changing settings. |
 | Settings fields blank on reopen | Load the extension from `dist/firefox` (not `src/`) and use the latest build. The options page reads credentials from the background storage, which persists locally. |
 | Private `.torrent` URL fails | qBittorrent must be able to download it; browser-only cookies/VPN-only access won't work. |

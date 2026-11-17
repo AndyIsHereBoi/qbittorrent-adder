@@ -256,6 +256,23 @@ export class QBClient {
     const webApi = await this.getWebApiVersion();
     if (webApi.ok) webApiVersion = webApi.text.trim() || null;
 
+    // A no-op authenticated POST verifies CSRF/cookie handling, not just the
+    // unauthenticated-friendly GET used for the version check.
+    const writeTest = await this.request('app/setPreferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: this.formBody({ json: '{}' }),
+    });
+    if (writeTest.status === 401 || writeTest.status === 403) {
+      throw new QBError(
+        'qBittorrent version checks work, but the write request was rejected (401/403). ' +
+          'Check CSRF protection and the extension host permission.',
+        'write-test-failed',
+        writeTest.status,
+      );
+    }
+    if (!writeTest.ok) throw this.httpError(writeTest, 'write test');
+
     return {
       ok: true,
       message: `Connected to qBittorrent ${version.text.trim() || ''}`.trim(),
@@ -287,6 +304,13 @@ export class QBClient {
         'The qBittorrent Web API was not found at this base URL (404). Check the URL and any ' +
           'reverse-proxy path.',
         'not-found',
+        status,
+      );
+    }
+    if (status === 409) {
+      return new QBError(
+        'qBittorrent already has this torrent. The duplicate was not added again.',
+        'already-exists',
         status,
       );
     }
