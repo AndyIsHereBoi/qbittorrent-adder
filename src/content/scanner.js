@@ -62,6 +62,8 @@ const CSS = `
 .qbt-item[data-state="success"] .qbt-btn { background: #16a34a; cursor: default; }
 .qbt-item[data-state="error"] .qbt-btn { background: #dc2626; }
 .qbt-item[data-state="duplicate"] .qbt-btn { background: #6b7280; cursor: not-allowed; opacity: .78; }
+.qbt-item[data-state="exists"] .qbt-btn { background: #0f766e; cursor: default; }
+.qbt-item[data-state="exists"] .qbt-status { color: #0f766e; }
 .qbt-icon, .qbt-icon svg {
   display: inline-flex;
   width: calc(13px * var(--qbt-scale, 1));
@@ -79,6 +81,7 @@ const CSS = `
 }
 .qbt-item[data-state="success"] .qbt-status,
 .qbt-item[data-state="error"] .qbt-status,
+.qbt-item[data-state="exists"] .qbt-status,
 .qbt-item[data-state="duplicate"] .qbt-status { display: inline-block; }
 .qbt-sr {
   position: absolute !important;
@@ -308,6 +311,8 @@ export function createScanner(options) {
         return { label: `Failed to add ${noun}. Click to retry.`, text: 'Failed' };
       case 'duplicate':
         return { label: `${noun === 'magnet' ? 'Magnet' : 'Torrent'} already in submission history`, text: 'In history' };
+      case 'exists':
+        return { label: `${noun === 'magnet' ? 'Magnet' : 'Torrent'} already in qBittorrent`, text: 'In qBittorrent' };
       default:
         return {
           label: kind === 'magnet' ? 'Add magnet to qBittorrent' : 'Add .torrent to qBittorrent',
@@ -319,7 +324,11 @@ export function createScanner(options) {
   function setState(item, state, detail = '') {
     item.state = state;
     item.element.setAttribute('data-state', state);
-    item.button.disabled = state === 'sending' || state === 'success' || state === 'duplicate';
+    item.button.disabled =
+      state === 'sending' ||
+      state === 'success' ||
+      state === 'duplicate' ||
+      state === 'exists';
     const labels = labelsFor(item.kind, state);
     const title = detail || labels.label;
     item.button.setAttribute('aria-label', labels.label);
@@ -413,6 +422,10 @@ export function createScanner(options) {
       const result = await submit(item.url, item.kind);
       if (!result || result.ok === false) {
         throw new Error(result?.message || 'qBittorrent did not accept the link.');
+      }
+      if (result.duplicate) {
+        setState(item, 'exists', result.message || 'This torrent is already in qBittorrent.');
+        return;
       }
       setState(
         item,

@@ -33,7 +33,7 @@ async function submit(url, kind) {
   if (!response?.ok) {
     return { ok: false, message: response?.message || 'Could not add this link to qBittorrent.' };
   }
-  return { ok: true, message: response.message };
+  return { ok: true, message: response.message, duplicate: response.duplicate === true };
 }
 
 async function checkHistory(items) {

@@ -165,6 +165,13 @@ async function addTorrent(message, sender) {
   try {
     await client.addTorrent(classified.url);
   } catch (error) {
+    if (error instanceof QBError && error.code === 'already-exists') {
+      return {
+        ok: true,
+        duplicate: true,
+        message: 'This torrent is already in qBittorrent.',
+      };
+    }
     return describeError(error, logger);
   } finally {
     release();

@@ -262,6 +262,24 @@ describe('button states', () => {
     expect(item.state).toBe('success');
   });
 
+  it('shows an already-in-qBittorrent state for duplicate submissions', async () => {
+    document.body.innerHTML = `<a href="${MAGNET}">Magnet</a>`;
+    const submit = vi.fn().mockResolvedValue({
+      ok: true,
+      duplicate: true,
+      message: 'This torrent is already in qBittorrent.',
+    });
+    scanner = makeScanner(makeSettings(), { submit });
+    scanner.start();
+
+    const item = scanner.getRecords()[0].items[0];
+    item.button.click();
+    await flush(0);
+    expect(item.state).toBe('exists');
+    expect(item.button.disabled).toBe(true);
+    expect(item.element.querySelector('.qbt-status').textContent).toBe('In qBittorrent');
+  });
+
   it('does not submit when the extension reports disabled', async () => {
     document.body.innerHTML = `<a href="${MAGNET}">Magnet</a>`;
     const submit = vi.fn().mockResolvedValue({ ok: false, message: 'The extension is disabled.' });
