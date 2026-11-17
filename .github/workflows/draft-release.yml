@@ -90,7 +90,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          LAST_TAG="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          LAST_TAG="$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""' 2>/dev/null || true)"
 
           if [[ -n "$LAST_TAG" ]]; then
             RANGE="${LAST_TAG}..HEAD"
