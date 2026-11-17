@@ -1,0 +1,133 @@
+name: Build and draft release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: draft-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build extension and create draft release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Lint extension
+        run: npm run lint:addon
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Name artifacts
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="v${VERSION}-build.${GITHUB_RUN_NUMBER}"
+          ZIP_SOURCE="$(find artifacts -maxdepth 1 -type f -name '*.zip' | head -n 1)"
+          ZIP_NAME="qbittorrent-adder-${VERSION}-firefox-mv2.zip"
+
+          mv "$ZIP_SOURCE" "artifacts/${ZIP_NAME}"
+          (
+            cd artifacts
+            sha256sum "${ZIP_NAME}" > SHA256SUMS.txt
+          )
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          LAST_TAG="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+
+          if [[ -n "$LAST_TAG" ]]; then
+            RANGE="${LAST_TAG}..HEAD"
+            SCOPE="since ${LAST_TAG}"
+          else
+            RANGE="HEAD"
+            SCOPE="all commits"
+          fi
+
+          git log "$RANGE" --pretty=format:'- %s (`%h`)' > "$RUNNER_TEMP/commits.txt"
+
+          if [[ ! -s "$RUNNER_TEMP/commits.txt" ]]; then
+            echo "- No commits found." > "$RUNNER_TEMP/commits.txt"
+          fi
+
+          {
+            echo "## qBittorrent Adder ${{ steps.artifacts.outputs.version }}"
+            echo
+            echo "Draft build from \`${GITHUB_SHA}\`."
+            echo
+            echo "### Commits ${SCOPE}"
+            echo
+            cat "$RUNNER_TEMP/commits.txt"
+            echo
+            echo
+            echo "### Installation"
+            echo
+            echo "1. Download and unzip \`${{ steps.artifacts.outputs.zip_name }}\`."
+            echo "2. Open Firefox's \`about:debugging\` page."
+            echo "3. Choose **This Firefox** → **Load Temporary Add-on…**."
+            echo "4. Select the unzipped \`manifest.json\`."
+            echo
+            echo "This is an unsigned draft build for temporary/development installation."
+            echo
+            echo "SHA-256: see \`SHA256SUMS.txt\` attached to this release."
+          } > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.artifacts.outputs.tag }}" \
+            "artifacts/${{ steps.artifacts.outputs.zip_name }}" \
+            "artifacts/SHA256SUMS.txt" \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "qBittorrent Adder ${{ steps.artifacts.outputs.version }} (build ${{ github.run_number }})" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qbittorrent-adder-${{ steps.artifacts.outputs.short_sha }}
+          path: |
+            artifacts/${{ steps.artifacts.outputs.zip_name }}
+            artifacts/SHA256SUMS.txt
+          if-no-files-found: error

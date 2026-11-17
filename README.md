@@ -178,6 +178,19 @@ The suite covers:
   415/404/5xx, `Fails.` responses, network errors, and timeouts.
 - history fingerprints and token-free display values.
 
+## Releases
+
+The **Build and draft release** GitHub Actions workflow can be started manually from the
+repository's Actions tab. It:
+
+- installs dependencies, runs tests, builds and lints the extension
+- packages `dist/firefox` as a zip
+- creates a **draft** GitHub release with the zip and a SHA-256 checksum
+- lists every commit subject since the latest published release in the release notes
+
+The draft tag uses `v<package version>-build.<run number>`, for example
+`v1.0.0-build.12`. Draft builds are unsigned and intended for temporary/development installation.
+
 ## Troubleshooting
 
 | Symptom | Fix |
