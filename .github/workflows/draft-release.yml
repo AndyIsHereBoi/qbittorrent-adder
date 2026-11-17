@@ -2,6 +2,12 @@ name: Build and draft release
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Extension/release version (for example 1.0.1)"
+        required: true
+        default: "1.0.0"
+        type: string
 
 permissions:
   contents: write
@@ -31,6 +37,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Set extension version
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use three numeric parts, for example 1.0.1." >&2
+            exit 1
+          fi
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "Building extension version ${VERSION}"
+
       - name: Run tests
         run: npm test
 
@@ -48,9 +67,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")"
+          VERSION="${{ inputs.version }}"
           SHORT_SHA="${GITHUB_SHA::7}"
-          TAG="v${VERSION}-build.${GITHUB_RUN_NUMBER}"
+          TAG="v${VERSION}"
           ZIP_SOURCE="$(find artifacts -maxdepth 1 -type f -name '*.zip' | head -n 1)"
           ZIP_NAME="qbittorrent-adder-${VERSION}-firefox-mv2.zip"
 
@@ -109,19 +128,36 @@ jobs:
             echo "SHA-256: see \`SHA256SUMS.txt\` attached to this release."
           } > "$RUNNER_TEMP/release-notes.md"
 
-      - name: Create draft release
+      - name: Create or update draft release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "${{ steps.artifacts.outputs.tag }}" \
-            "artifacts/${{ steps.artifacts.outputs.zip_name }}" \
-            "artifacts/SHA256SUMS.txt" \
-            --draft \
-            --target "$GITHUB_SHA" \
-            --title "qBittorrent Adder ${{ steps.artifacts.outputs.version }} (build ${{ github.run_number }})" \
-            --notes-file "$RUNNER_TEMP/release-notes.md"
+          TAG="${{ steps.artifacts.outputs.tag }}"
+          TITLE="qBittorrent Adder ${{ steps.artifacts.outputs.version }}"
+          NOTES="$RUNNER_TEMP/release-notes.md"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq .isDraft)"
+            if [[ "$IS_DRAFT" != "true" ]]; then
+              echo "Release $TAG already exists and is published." >&2
+              exit 1
+            fi
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES"
+            gh release upload "$TAG" \
+              "artifacts/${{ steps.artifacts.outputs.zip_name }}" \
+              "artifacts/SHA256SUMS.txt" \
+              --clobber
+          else
+            gh release create "$TAG" \
+              "artifacts/${{ steps.artifacts.outputs.zip_name }}" \
+              "artifacts/SHA256SUMS.txt" \
+              --draft \
+              --target "$GITHUB_SHA" \
+              --title "$TITLE" \
+              --notes-file "$NOTES"
+          fi
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4

@@ -181,15 +181,16 @@ The suite covers:
 ## Releases
 
 The **Build and draft release** GitHub Actions workflow can be started manually from the
-repository's Actions tab. It:
+repository's Actions tab. It asks for the extension version, for example `1.0.1`. It:
 
+- sets that version in the built manifest and package metadata
 - installs dependencies, runs tests, builds and lints the extension
 - packages `dist/firefox` as a zip
-- creates a **draft** GitHub release with the zip and a SHA-256 checksum
+- creates a **draft** GitHub release tagged `v<version>` with the zip and a SHA-256 checksum
 - lists every commit subject since the latest published release in the release notes
 
-The draft tag uses `v<package version>-build.<run number>`, for example
-`v1.0.0-build.12`. Draft builds are unsigned and intended for temporary/development installation.
+Re-running the same version updates an existing **draft** release; it refuses to overwrite a
+published release. Draft builds are unsigned and intended for temporary/development installation.
 
 ## Troubleshooting
 
