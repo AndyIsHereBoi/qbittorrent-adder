@@ -251,6 +251,28 @@ summary:focus-visible {
   margin-top: 16px;
 }
 
+.scale-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scale-control input[type="range"] {
+  flex: 1;
+  min-width: 120px;
+  accent-color: var(--accent);
+}
+
+.scale-control input[type="number"] {
+  width: 76px;
+  flex: none;
+}
+
+.scale-suffix {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 button {
   font: inherit;
 }

@@ -13,7 +13,8 @@ background context.
 - Detects magnet URIs in configurable HTML attributes and configurable element text (for example
   `<code>` blocks).
 - Watches dynamically added/changed content with `MutationObserver`; only new subtrees are scanned.
-- Injects buttons in a Shadow DOM so host-page CSS cannot leak into or override the UI.
+- Draws buttons in a fixed Shadow DOM overlay above the page, so they stay beside their link when the page scrolls or shifts without affecting page layout.
+- Button size is configurable from 50% to 200% with a slider and percentage input.
 - Shows sending/success/failure states, an accessible live status, and retry after failure.
 - Validates the qBittorrent session before each submit, logs in when needed, and retries once if the
   session expires between validation and submission.

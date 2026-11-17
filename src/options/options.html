@@ -128,21 +128,35 @@
 
         <section class="card" aria-labelledby="display-heading">
           <h2 id="display-heading">Button display</h2>
+          <p class="muted">
+            Buttons are drawn in a fixed overlay above the page and follow their link as the page scrolls
+            or shifts. Nothing is inserted into the page's layout.
+          </p>
           <div class="grid two">
             <label class="field">
               <span>Default placement</span>
               <select id="placement">
-                <option value="after">After the link</option>
-                <option value="before">Before the link</option>
+                <option value="after">Right of the link</option>
+                <option value="before">Left of the link</option>
               </select>
             </label>
             <label class="field">
               <span>Default layout</span>
               <select id="layout">
-                <option value="inline">Inline</option>
-                <option value="block">Own line</option>
+                <option value="inline">Horizontal</option>
+                <option value="block">Stack vertically</option>
               </select>
             </label>
+
+            <div class="field full">
+              <span>Button size</span>
+              <div class="scale-control">
+                <input id="scale-range" type="range" min="50" max="200" step="5" aria-label="Button size percentage" />
+                <input id="scale-number" type="number" min="50" max="200" step="5" aria-label="Button size percentage" />
+                <span class="scale-suffix" aria-hidden="true">%</span>
+              </div>
+              <small class="muted">Scales the overlay buttons from 50% to 200%.</small>
+            </div>
           </div>
 
           <h3>Per-site rules</h3>
@@ -164,16 +178,16 @@
               <span>Placement</span>
               <select id="rule-placement">
                 <option value="default">Use default</option>
-                <option value="after">After</option>
-                <option value="before">Before</option>
+                <option value="after">Right</option>
+                <option value="before">Left</option>
               </select>
             </label>
             <label class="field">
               <span>Layout</span>
               <select id="rule-layout">
                 <option value="default">Use default</option>
-                <option value="inline">Inline</option>
-                <option value="block">Own line</option>
+                <option value="inline">Horizontal</option>
+                <option value="block">Stack vertically</option>
               </select>
             </label>
             <button id="add-rule" type="button" class="secondary">Add rule</button>

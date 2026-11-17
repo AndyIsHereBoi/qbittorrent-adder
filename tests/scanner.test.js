@@ -83,7 +83,7 @@ describe('link detection and duplicate prevention', () => {
 
     const torrentRecord = records.find((record) => record.items[0].kind === 'torrent');
     expect(torrentRecord.items[0].url).toBe(TORRENT);
-    expect(document.querySelectorAll(`[${HOST_ATTRIBUTE}]`)).toHaveLength(2);
+    expect(document.querySelectorAll(`[${HOST_ATTRIBUTE}]`)).toHaveLength(1);
     expect(document.getElementById('plain').nextElementSibling).toBeNull();
   });
 
@@ -175,12 +175,24 @@ describe('per-site display and history states', () => {
     expect(document.querySelectorAll(`[${HOST_ATTRIBUTE}]`)).toHaveLength(0);
   });
 
-  it('places the button before the link when configured', () => {
+  it('uses a fixed overlay and applies the configured side', () => {
     document.body.innerHTML = `<a id="magnet" href="${MAGNET}">Magnet</a>`;
     scanner = makeScanner(makeSettings({ display: { placement: 'before' } }));
     scanner.start();
     const host = document.querySelector(`[${HOST_ATTRIBUTE}]`);
-    expect(document.getElementById('magnet').previousElementSibling).toBe(host);
+    expect(host).not.toBeNull();
+    expect(host.style.position).toBe('fixed');
+    const group = host.shadowRoot.querySelector('[data-qbt-group]');
+    expect(group.getAttribute('data-placement')).toBe('before');
+    expect(document.getElementById('magnet').previousElementSibling).toBeNull();
+  });
+
+  it('applies the configured scale to the overlay', () => {
+    document.body.innerHTML = `<a href="${MAGNET}">Magnet</a>`;
+    scanner = makeScanner(makeSettings({ display: { scale: 150 } }));
+    scanner.start();
+    const host = document.querySelector(`[${HOST_ATTRIBUTE}]`);
+    expect(host.style.getPropertyValue('--qbt-scale')).toBe('1.5');
   });
 
   it('disables buttons for items already in history when configured', async () => {

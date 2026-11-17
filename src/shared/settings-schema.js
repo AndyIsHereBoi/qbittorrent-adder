@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   display: Object.freeze({
     placement: 'after',
     layout: 'inline',
+    scale: 100,
     siteRules: Object.freeze([]),
   }),
   history: Object.freeze({
@@ -177,6 +178,12 @@ export function validateSettings(input = {}) {
     ? Math.min(2000, Math.max(10, Math.round(maxEntriesRaw)))
     : DEFAULT_SETTINGS.history.maxEntries;
 
+  const scaleRaw = Number(rawDisplay.scale);
+  const scale =
+    Number.isFinite(scaleRaw) && scaleRaw > 0
+      ? Math.min(200, Math.max(50, Math.round(scaleRaw)))
+      : 100;
+
   const settings = {
     version: 1,
     enabled: raw.enabled !== false,
@@ -190,6 +197,7 @@ export function validateSettings(input = {}) {
     display: {
       placement: PLACEMENTS.has(rawDisplay.placement) ? rawDisplay.placement : 'after',
       layout: LAYOUTS.has(rawDisplay.layout) ? rawDisplay.layout : 'inline',
+      scale,
       siteRules: normalizeSiteRules(rawDisplay.siteRules, errors),
     },
     history: {
@@ -252,6 +260,7 @@ export function publicSettings(settings) {
     display: {
       placement: settings.display.placement,
       layout: settings.display.layout,
+      scale: settings.display.scale,
       siteRules: settings.display.siteRules.map((rule) => ({ ...rule })),
     },
     history: {

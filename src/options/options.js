@@ -21,6 +21,8 @@ const textSelectorsInput = $('text-selectors');
 const debugInput = $('debug');
 const placementInput = $('placement');
 const layoutInput = $('layout');
+const scaleRangeInput = $('scale-range');
+const scaleNumberInput = $('scale-number');
 const historyEnabledInput = $('history-enabled');
 const duplicateModeInput = $('duplicate-mode');
 const historyBody = $('history-body');
@@ -69,6 +71,7 @@ function collectForm() {
     display: {
       placement: placementInput.value,
       layout: layoutInput.value,
+      scale: Number(scaleNumberInput.value),
       siteRules: siteRules.map((rule) => ({ ...rule })),
     },
     history: {
@@ -236,6 +239,8 @@ async function load(attempt = 0) {
   debugInput.checked = settings.debug;
   placementInput.value = settings.display.placement;
   layoutInput.value = settings.display.layout;
+  scaleRangeInput.value = String(settings.display.scale);
+  scaleNumberInput.value = String(settings.display.scale);
   historyEnabledInput.checked = settings.history.enabled;
   duplicateModeInput.value = settings.history.duplicateMode;
   historyMaxEntries = settings.history.maxEntries;
@@ -321,6 +326,15 @@ testButton.addEventListener('click', () => void testConnection());
 $('add-rule').addEventListener('click', addSiteRule);
 $('refresh-history').addEventListener('click', () => void refreshHistory());
 $('clear-history').addEventListener('click', () => void clearHistory());
+scaleRangeInput.addEventListener('input', () => {
+  scaleNumberInput.value = scaleRangeInput.value;
+});
+scaleNumberInput.addEventListener('input', () => {
+  const value = Number(scaleNumberInput.value);
+  if (Number.isFinite(value) && value >= 50 && value <= 200) {
+    scaleRangeInput.value = String(value);
+  }
+});
 baseUrlInput.addEventListener('blur', () => {
   const normalised = normalizeBaseUrl(baseUrlInput.value);
   if (normalised.ok && normalised.value) baseUrlInput.value = normalised.value;

@@ -36,6 +36,7 @@ describe('settings validation', () => {
     expect(settings.search.torrentLinks).toBe(true);
     expect(settings.search.textSelectors).toEqual(['code']);
     expect(settings.display.placement).toBe('after');
+    expect(settings.display.scale).toBe(100);
     expect(settings.history.duplicateMode).toBe('allow');
     expect(settings.debug).toBe(false);
   });
@@ -49,6 +50,7 @@ describe('settings validation', () => {
       display: {
         placement: 'sideways',
         layout: 'block',
+        scale: 999,
         siteRules: [
           { hostname: 'Example.COM', enabled: false, placement: 'before', layout: 'inline' },
           { hostname: '*.example.org', placement: 'nonsense', layout: 'nonsense' },
@@ -63,6 +65,7 @@ describe('settings validation', () => {
     expect(settings.search.textSelectors).toEqual(['code', '.magnet']);
     expect(settings.display.placement).toBe('after');
     expect(settings.display.layout).toBe('block');
+    expect(settings.display.scale).toBe(200);
     expect(settings.display.siteRules).toHaveLength(2);
     expect(settings.display.siteRules[0].hostname).toBe('example.com');
     expect(settings.display.siteRules[1].placement).toBe('default');

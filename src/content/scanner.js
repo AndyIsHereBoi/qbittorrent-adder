@@ -28,22 +28,26 @@ const ICON_PATHS = {
 const CSS = `
 :host { all: initial; }
 *, *::before, *::after { box-sizing: border-box; }
-.qbt-items {
+.qbt-group {
+  position: fixed;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: calc(4px * var(--qbt-scale, 1));
+  pointer-events: auto;
   font: 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-.qbt-item { display: inline-flex; align-items: center; gap: 3px; }
+.qbt-group[data-layout="block"] { flex-direction: column; }
+.qbt-items { display: inline-flex; align-items: center; gap: calc(4px * var(--qbt-scale, 1)); }
+.qbt-item { display: inline-flex; align-items: center; gap: calc(3px * var(--qbt-scale, 1)); }
 .qbt-btn {
   all: unset;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 21px;
-  height: 21px;
-  border-radius: 5px;
+  width: calc(21px * var(--qbt-scale, 1));
+  height: calc(21px * var(--qbt-scale, 1));
+  border-radius: calc(5px * var(--qbt-scale, 1));
   cursor: pointer;
   background: #3b82f6;
   color: #fff;
@@ -58,12 +62,16 @@ const CSS = `
 .qbt-item[data-state="success"] .qbt-btn { background: #16a34a; cursor: default; }
 .qbt-item[data-state="error"] .qbt-btn { background: #dc2626; }
 .qbt-item[data-state="duplicate"] .qbt-btn { background: #6b7280; cursor: not-allowed; opacity: .78; }
-.qbt-icon, .qbt-icon svg { display: inline-flex; width: 13px; height: 13px; }
+.qbt-icon, .qbt-icon svg {
+  display: inline-flex;
+  width: calc(13px * var(--qbt-scale, 1));
+  height: calc(13px * var(--qbt-scale, 1));
+}
 .qbt-status {
   display: none;
-  padding: 2px 5px;
-  border-radius: 3px;
-  font: 600 10px/1.1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: calc(2px * var(--qbt-scale, 1)) calc(5px * var(--qbt-scale, 1));
+  border-radius: calc(3px * var(--qbt-scale, 1));
+  font: 600 calc(10px * var(--qbt-scale, 1))/1.1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: #1e293b;
   background: rgba(255,255,255,.92);
   border: 1px solid rgba(15,23,42,.16);
@@ -134,6 +142,11 @@ export function createScanner(options) {
   let historySeq = 0;
   const records = new Map();
   const queuedNodes = new Set();
+  let overlayHost = null;
+  let overlayShadow = null;
+  let positionFrame = null;
+  let positionInterval = null;
+  let resizeObserver = null;
 
   function textSelectors() {
     return settings.search.textSelectors.filter((selector) => {
@@ -163,26 +176,99 @@ export function createScanner(options) {
     return resolveDisplay(settings, win.location.hostname);
   }
 
-  function makeHost(layout) {
-    const host = doc.createElement('span');
-    host.setAttribute(HOST_ATTRIBUTE, '');
-    host.setAttribute('data-qbt-layout', layout);
-    host.style.cssText =
-      'all: initial !important; display: inline-flex !important; vertical-align: middle !important; ' +
-      'margin: 0 0 0 4px !important; padding: 0 !important; line-height: 1 !important; ' +
-      'max-width: none !important; min-width: 0 !important;';
-    if (layout === 'block') {
-      host.style.setProperty('display', 'flex', 'important');
-      host.style.setProperty('margin', '4px 0', 'important');
-    }
-
-    const shadow = host.attachShadow({ mode: 'open' });
+  function ensureOverlay() {
+    if (overlayHost?.isConnected) return;
+    overlayHost = doc.createElement('div');
+    overlayHost.setAttribute(HOST_ATTRIBUTE, '');
+    overlayHost.setAttribute('aria-hidden', 'false');
+    overlayHost.style.cssText =
+      'all: initial !important; position: fixed !important; inset: 0 !important; ' +
+      'display: block !important; pointer-events: none !important; z-index: 2147483647 !important; ' +
+      'margin: 0 !important; padding: 0 !important; border: 0 !important; overflow: visible !important;';
+    overlayShadow = overlayHost.attachShadow({ mode: 'open' });
     const style = doc.createElement('style');
     style.textContent = CSS;
+    overlayShadow.append(style);
+    overlayHost.style.setProperty(
+      '--qbt-scale',
+      String((Number(settings.display?.scale) || 100) / 100),
+    );
+    (doc.documentElement || doc.body).append(overlayHost);
+  }
+
+  function destroyOverlay() {
+    overlayHost?.remove();
+    overlayHost = null;
+    overlayShadow = null;
+  }
+
+  function makeGroup(layout) {
+    ensureOverlay();
+    const group = doc.createElement('span');
+    group.className = 'qbt-group';
+    group.setAttribute('data-qbt-group', '');
+    group.setAttribute('data-layout', layout);
     const items = doc.createElement('span');
     items.className = 'qbt-items';
-    shadow.append(style, items);
-    return { host, shadow, items };
+    group.append(items);
+    overlayShadow.append(group);
+    return { host: group, group, items };
+  }
+
+  function schedulePositionUpdate() {
+    if (!running || positionFrame !== null) return;
+    positionFrame = win.requestAnimationFrame(() => {
+      positionFrame = null;
+      positionAll();
+    });
+  }
+
+  function positionRecord(record) {
+    const { target, group } = record;
+    if (!target.isConnected || record.items.size === 0) {
+      group.style.display = 'none';
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    const viewportWidth = win.innerWidth;
+    const viewportHeight = win.innerHeight;
+    if (
+      !rect ||
+      (rect.width === 0 && rect.height === 0) ||
+      rect.bottom < 0 ||
+      rect.top > viewportHeight
+    ) {
+      group.style.display = 'none';
+      return;
+    }
+
+    group.style.visibility = 'hidden';
+    group.style.display = 'inline-flex';
+    const width = group.offsetWidth || 0;
+    const height = group.offsetHeight || 0;
+
+    const gap = 4;
+    const minMargin = 4;
+    let left = record.placement === 'before' ? rect.left - width - gap : rect.right + gap;
+    let top = rect.top + (rect.height - height) / 2;
+
+    if (left + width > viewportWidth - minMargin) {
+      const alternate = rect.left - width - gap;
+      if (alternate >= minMargin) left = alternate;
+    }
+    if (left < minMargin) left = Math.min(viewportWidth - width - minMargin, rect.left);
+    if (left < minMargin) left = minMargin;
+    top = Math.max(minMargin, Math.min(viewportHeight - height - minMargin, top));
+
+    group.style.left = `${Math.round(left)}px`;
+    group.style.top = `${Math.round(top)}px`;
+    group.style.visibility = '';
+  }
+
+  function positionAll() {
+    if (!running) return;
+    for (const record of records.values()) positionRecord(record);
   }
 
   function makeItem(kind) {
@@ -246,8 +332,10 @@ export function createScanner(options) {
   function removeRecord(target) {
     const record = records.get(target);
     if (!record) return;
+    resizeObserver?.unobserve(target);
     record.host.remove();
     records.delete(target);
+    if (records.size === 0) destroyOverlay();
   }
 
   function removeItem(record, key) {
@@ -258,27 +346,34 @@ export function createScanner(options) {
     if (record.items.size === 0) {
       const target = record.target;
       removeRecord(target);
+    } else {
+      schedulePositionUpdate();
     }
   }
 
   function ensureRecord(target) {
     const display = displayForDocument();
     if (display.hidden || target === doc.documentElement || target === doc.body) return null;
-    if (!target.parentNode || target.parentNode.nodeType !== 1) return null;
 
     let record = records.get(target);
     if (record && record.host.isConnected) return record;
     if (record) removeRecord(target);
 
-    const { host, shadow, items } = makeHost(display.layout);
-    if (display.placement === 'before') target.insertAdjacentElement('beforebegin', host);
-    else target.insertAdjacentElement('afterend', host);
+    const { host, group, items } = makeGroup(display.layout);
+    group.setAttribute('data-placement', display.placement);
 
-    record = { target, host, shadow, items, map: new Map(), placement: display.placement };
-    // Store items under map (kept separate from the shadow container name).
+    record = {
+      target,
+      host,
+      group,
+      layout: display.layout,
+      placement: display.placement,
+    };
     record.items = new Map();
     record.itemsContainer = items;
     records.set(target, record);
+    resizeObserver?.observe(target);
+    schedulePositionUpdate();
     return record;
   }
 
@@ -306,6 +401,7 @@ export function createScanner(options) {
     });
     item.button.addEventListener('auxclick', (event) => event.stopPropagation());
 
+    schedulePositionUpdate();
     scheduleHistoryRefresh();
   }
 
@@ -415,6 +511,7 @@ export function createScanner(options) {
   function scanAll() {
     cleanupDisconnected();
     scanRoot(doc);
+    schedulePositionUpdate();
     scheduleHistoryRefresh();
   }
 
@@ -442,6 +539,7 @@ export function createScanner(options) {
       for (const node of nodes) {
         if (node?.isConnected) scanRoot(node);
       }
+      schedulePositionUpdate();
       scheduleHistoryRefresh();
     }, delay);
   }
@@ -480,6 +578,10 @@ export function createScanner(options) {
     if (queuedNodes.size > 0) scheduleQueuedScan();
   }
 
+  function onViewportChange() {
+    schedulePositionUpdate();
+  }
+
   function startObserving() {
     if (observer || !doc.documentElement) return;
     const attributeFilter = ['href', ...settings.search.extraAttributes];
@@ -491,6 +593,15 @@ export function createScanner(options) {
       attributes: true,
       attributeFilter,
     });
+    win.addEventListener('scroll', onViewportChange, true);
+    win.addEventListener('resize', onViewportChange);
+    if (typeof win.ResizeObserver === 'function') {
+      resizeObserver = new win.ResizeObserver(() => schedulePositionUpdate());
+      for (const target of records.keys()) resizeObserver.observe(target);
+    }
+    if (positionInterval === null) {
+      positionInterval = win.setInterval(schedulePositionUpdate, 500);
+    }
   }
 
   function scheduleHistoryRefresh(delay = 180) {
@@ -551,6 +662,18 @@ export function createScanner(options) {
       observer.disconnect();
       observer = null;
     }
+    win.removeEventListener('scroll', onViewportChange, true);
+    win.removeEventListener('resize', onViewportChange);
+    resizeObserver?.disconnect();
+    resizeObserver = null;
+    if (positionInterval !== null) {
+      win.clearInterval(positionInterval);
+      positionInterval = null;
+    }
+    if (positionFrame !== null) {
+      win.cancelAnimationFrame(positionFrame);
+      positionFrame = null;
+    }
     if (scanTimer !== null) {
       win.clearTimeout(scanTimer);
       scanTimer = null;
@@ -561,6 +684,7 @@ export function createScanner(options) {
     }
     queuedNodes.clear();
     for (const target of [...records.keys()]) removeRecord(target);
+    destroyOverlay();
   }
 
   function updateSettings(next) {
@@ -569,6 +693,18 @@ export function createScanner(options) {
       observer.disconnect();
       observer = null;
     }
+    win.removeEventListener('scroll', onViewportChange, true);
+    win.removeEventListener('resize', onViewportChange);
+    resizeObserver?.disconnect();
+    resizeObserver = null;
+    if (positionInterval !== null) {
+      win.clearInterval(positionInterval);
+      positionInterval = null;
+    }
+    if (positionFrame !== null) {
+      win.cancelAnimationFrame(positionFrame);
+      positionFrame = null;
+    }
     if (scanTimer !== null) {
       win.clearTimeout(scanTimer);
       scanTimer = null;
@@ -579,6 +715,7 @@ export function createScanner(options) {
     }
     queuedNodes.clear();
     for (const target of [...records.keys()]) removeRecord(target);
+    destroyOverlay();
     if (running) {
       startObserving();
       scanAll();
